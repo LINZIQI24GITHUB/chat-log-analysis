@@ -26,6 +26,20 @@ import version_guard  # noqa: E402
 from base import SourceError  # noqa: E402
 
 
+
+def lane_available(lane: str) -> bool:
+    """这个渠道的实现是否存在（开源版不带 wcdb）。"""
+    mod = {"wcdb": "wcdb", "clipboard": "clipboard",
+           "ocr": "ocr", "snapshot": "snapshot"}.get(lane)
+    if not mod:
+        return False
+    try:
+        __import__(mod)
+        return True
+    except ImportError:
+        return False
+
+
 def build_source(lane: str, args):
     if lane == "wcdb":
         try:
@@ -111,7 +125,7 @@ def main() -> int:
 
     # 1) 版本闸门（只有本机读取通道需要）
     version = args.wechat_version or "n/a"
-    if args.lane == "wcdb":
+    if args.lane == "wcdb" and lane_available("wcdb"):
         status, msg = version_guard.check(force=args.force_version)
         print(f"[version] {msg}")
         if status != "ok":
