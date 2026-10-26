@@ -58,7 +58,7 @@ def sample_delay_ms(persona: dict) -> int:
     return int(v * 1000)
 
 
-def call_model(cfg: dict, persona: dict, history: list[dict]) -> str:
+def call_model(cfg: dict, persona: dict, history: list[dict], memory: list[dict] | None = None) -> str:
     base = (cfg.get("base_url") or "").rstrip("/")
     key = cfg.get("key") or ""
     model = cfg.get("model") or "gpt-4o-mini"
@@ -71,6 +71,15 @@ def call_model(cfg: dict, persona: dict, history: list[dict]) -> str:
         if fs.get("me") and fs.get("her"):
             msgs.append({"role": "user", "content": fs["me"]})
             msgs.append({"role": "assistant", "content": fs["her"]})
+    # 长期记忆放在最靠近当前对话的位置，并写清楚「你」= 你自己说过的话
+    if memory:
+        block = ["【你记得的往事——这是你俩真实的聊天记录，下面标「你」的就是你自己说过的话】"]
+        for m in memory:
+            block.append(f"（{m['day']}）他：{m['me']}")
+            block.append(f"（{m['day']}）你：{m['her']}")
+        block.append("他问起过去时，就用上面这些真实细节回答；"
+                     "其中的数字是真实的，可以引用；除此之外不要编造新的数字。")
+        msgs.append({"role": "system", "content": "\n".join(block)})
     for h in history[-14:]:
         role = "user" if h.get("role") == "me" else "assistant"
         msgs.append({"role": role, "content": str(h.get("text", ""))[:500]})
@@ -159,6 +168,85 @@ def detect_provider(key: str) -> dict:
             tried.append({"provider": name, "error": msg[:120]})
             print(f"[detect] {name} 失败: {msg[:100]}", file=sys.stderr, flush=True)
     return {"ok": False, "tried": tried}
+
+
+
+# ---------------- 长期记忆：从原始记录里检索相关旧事 ----------------
+MEMORY: list[dict] = []
+
+
+def load_memory(path: str) -> None:
+    """把 chat.jsonl 切成「我几句 -> 她几句」的片段，供检索。"""
+    global MEMORY
+    if not path or not os.path.exists(path):
+        return
+    rows = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    rows.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+    turns, mine, hers = [], [], []
+
+    def close():
+        nonlocal mine, hers
+        if mine and hers:
+            me_txt = " ".join((m.get("text") or "") for m in mine).strip()
+            her_txt = " ".join((h.get("text") or "") for h in hers).strip()
+            if me_txt and her_txt and "[" not in me_txt[:3]:
+                turns.append({"me": me_txt[:120], "her": her_txt[:120],
+                              "day": (hers[0].get("time") or "")[:10]})
+        mine, hers = [], []
+
+    for r in rows:
+        txt = (r.get("text") or "").strip()
+        if not txt or txt.startswith("[type") or "[图片]" in txt:
+            continue
+        if r.get("sender") == "me":
+            if hers:
+                close()
+            mine.append(r)
+        elif mine:
+            hers.append(r)
+    close()
+    MEMORY = turns
+    print(f"  [memory] 载入 {len(turns)} 段旧对话", flush=True)
+
+
+def _bigrams(s: str) -> set:
+    s = re.sub(r"\s+", "", s)
+    return {s[i:i + 2] for i in range(len(s) - 1)}
+
+
+def retrieve(query: str, k: int = 4) -> list[dict]:
+    if not MEMORY or not query:
+        return []
+    q = _bigrams(query)
+    if not q:
+        return []
+    scored = []
+    for t in MEMORY:
+        b = _bigrams(t["me"] + t["her"])
+        hit = len(q & b)
+        if hit:
+            scored.append((hit / (len(q) ** 0.5), t))
+    scored.sort(key=lambda x: -x[0])
+    return [t for _, t in scored[:k]]
+
+
+# ---------------- 防编造：只允许出现上下文里有的数字 ----------------
+NUM = re.compile(r"\d+(?:\.\d+)?")
+
+
+def nums(s: str) -> set:
+    return set(NUM.findall(s or ""))
+
+
+def check_numbers(text: str, allowed: set) -> set:
+    return {n for n in nums(text) if n not in allowed}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -268,7 +356,10 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         try:
-            text = call_model(cfg, persona, history)
+            mem = retrieve(history[-1].get('text', ''))
+            if mem:
+                print(f"[memory] 命中 {len(mem)} 段旧事", file=sys.stderr, flush=True)
+            text = call_model(cfg, persona, history, mem)
         except ValueError as e:
             print(f"[reply] 失败 base={cfg.get('base_url')} model={cfg.get('model')} "
                   f"key_len={len(cfg.get('key') or '')} err={str(e)[:120]}",
@@ -281,6 +372,41 @@ class Handler(BaseHTTPRequestHandler):
         print(f"[reply] turn={turn} silent=False delay={delay/1000:.1f}s "
               f"len={len(text)} key_len={len(cfg.get('key') or '')}",
               file=sys.stderr, flush=True)
+        # 只允许出现上下文里已有的数字；否则重来一次，再不行就删掉那句
+        allowed = nums(" ".join(h.get("text", "") for h in history))
+        if mem:
+            allowed |= nums(" ".join(m["me"] + m["her"] for m in mem))
+        bad = check_numbers(text, allowed)
+        if bad:
+            print(f"[guard] 编造数字 {bad}，重试一次", file=sys.stderr, flush=True)
+            retry_msgs = msgs + [
+                {"role": "assistant", "content": text},
+                {"role": "system", "content": f"你编造了数字 {sorted(bad)}。"
+                 "重写这一条，不要出现任何没在对话里出现过的数字，模糊一点没关系。"}]
+            try:
+                body2 = json.dumps({"model": model, "messages": retry_msgs,
+                                    "temperature": 0.8, "max_tokens": 120,
+                                    "frequency_penalty": 0.5}).encode("utf-8")
+                req2 = urllib.request.Request(
+                    base + "/chat/completions", data=body2,
+                    headers={"Content-Type": "application/json",
+                             "Authorization": "Bearer " + key})
+                with urllib.request.urlopen(req2, timeout=60) as r2:
+                    d2 = json.loads(r2.read().decode("utf-8"))
+                t2 = (d2.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+                t2 = re.sub(r"^[\"'「『]|[\"'」』]$", "", t2)
+                if t2 and not check_numbers(t2, allowed):
+                    text = t2
+                else:
+                    text = t2 or text
+            except Exception as e:
+                print(f"[guard] 重试失败 {e}", file=sys.stderr, flush=True)
+            # 还在编：把带数字的句子删掉
+            if check_numbers(text, allowed):
+                keep = [seg for seg in re.split(r"(?<=[。！？!?\n])", text)
+                        if not check_numbers(seg, allowed)]
+                text = "".join(keep).strip() or "嗯 差不多"
+
         parts = [p.strip() for p in text.split("\n") if p.strip()][:3] or [text]
         self._send(200, json.dumps({
             "reply": True, "text": text, "texts": parts, "delay_ms": delay,
@@ -306,6 +432,7 @@ def main() -> int:
         print(f"[error] 找不到 {path}，先跑 scripts/persona.py 生成", file=sys.stderr)
         return 2
     PERSONA = json.load(open(path, encoding="utf-8"))
+    load_memory(PERSONA.get("source", ""))
     global MAX_DELAY_S
     MAX_DELAY_S = args.max_delay
     REPLY_RATE_OVERRIDE["v"] = args.reply_rate
