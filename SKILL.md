@@ -6,7 +6,7 @@ description: >-
   触发场景：分析聊天记录、复盘一段关系、看看我们怎么相处的、他到底怎么想的、
   这段关系该不该继续、分析我和 XX 的聊天。
   可以直接从本机微信读（需本地 reader），也可以用剪贴板/已导出的文本。
-version: 0.3.0
+version: 0.4.0
 ---
 
 # 聊天记录关系分析
@@ -31,6 +31,9 @@ version: 0.3.0
 ## 采集：三条通道
 
 ```bash
+# 0) 直接读本机微信（Windows，微信需已登录）
+python scripts/ingest.py --contact 小林 --lane wcdb --out work/chat.jsonl
+
 # 1) 已有明文数据目录（contact/ + message/）
 python scripts/ingest.py --contact 小林 --lane snapshot \
   --snapshot-dir "D:\wechat_data\<账号>" --out work/chat.jsonl
@@ -44,13 +47,15 @@ python scripts/normalize.py chat.txt --self 我 --out work/chat.jsonl
 
 | 通道 | 前提 | 输出质量 | 说明 |
 |---|---|---|---|
-| `snapshot` | 已解密的微信数据目录 | 全量文字，语音为占位 | 最省事，**不解密、不碰进程** |
+| `wcdb` | Windows + 微信已登录 + 版本白名单 | 全量，含语音转写 | 走 `vendor/` 读进程内存取密钥；不联网 |
+| `snapshot` | 已解密的微信数据目录 | 全量文字，语音为占位 | 不解密、不碰进程，最保守 |
 | `clipboard` | pywin32 | 文本 100%，无时间戳时降级 | 用户在微信里复制几段，脚本合并去重 |
 | `normalize` | 任意文本/JSONL | 取决于导出格式 | 微信/WhatsApp/通用格式都能吃 |
 | `ocr` | 未实现 | — | 会明确报错，不乱按键鼠 |
 
-> 仓库**不附带**「从运行中的微信进程取密钥」那条通道。它属于另一类工具，和「分析」
-> 是两件事。你有合法读取方式的话，按 `sources/README.md` 自己接一个即可。
+> `wcdb` 通道会读微信进程的内存来取数据库密钥（只读，不注入）。它只对**你自己登录的
+> 微信**有意义，密钥不落盘、不联网，解密副本在分析结束后删除。版本不在白名单时**不要硬跑**，
+> 让用户改用 `clipboard` 或 `snapshot`。
 
 ### 资格确认（读取前必弹）
 

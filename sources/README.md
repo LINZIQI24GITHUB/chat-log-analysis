@@ -29,17 +29,19 @@ class MySource(MessageSource):
 | 文件 | lane | 说明 |
 |---|---|---|
 | `clipboard.py` | `clipboard` | 读系统剪贴板，用户在微信里复制几段，脚本合并去重 |
+| `wcdb.py` | `wcdb` | 读本机正在登录的微信：调 `vendor/` 取密钥 → 解密 → 导出（Windows） |
 | `snapshot.py` | `snapshot` | 读一个**已经解密**的微信数据目录（`contact/` + `message/`） |
 | `ocr.py` | `ocr` | 占位，未实现，调用时会给出明确提示 |
 
-## 为什么不带「从运行的微信里取密钥」这条通道
+## 关于 `wcdb` 通道
 
-那一步要读另一个进程的内存，属于另一类工具，本仓库不附带：
+它读微信进程的内存来取密钥，只应该用在**你自己设备、你自己账号**上：
 
-- 它和「分析」是两件事，混在一起会让这个项目的定位变味
-- 杀软会拦，版本一升级就失效，维护成本和收益不成比例
+- 密钥不落盘、不联网，解密副本分析完即删
+- 微信版本一变就可能失效——失效时先升级 `vendor/wcdb_key_tool_windows.py`（见 `vendor/NOTICE.md`）
+- 杀软可能误报，这是这类工具的常态
 
-如果你自己有合法的读取方式（例如已解密的数据目录），直接写一个 `sources/mine.py`，
+想换成别的方式，直接写一个 `sources/mine.py`，
 在 `scripts/ingest.py` 的 `build_source()` 里加一行分支即可，分析层完全不用改。
 
 ```python

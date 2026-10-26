@@ -2,3 +2,5 @@
 zstandard>=0.21      # 读微信数据库（snapshot 通道）需要
 jieba>=0.42          # 可选：中文分词，没装会退回二元组
 pywin32>=306 ; sys_platform == "win32"   # 可选：clipboard 通道需要
+pysilk>=0.2 ; sys_platform == "win32"      # 可选：wcdb 通道的语音解码
+dashscope>=1.20                            # 可选：语音转写（会上传音频）

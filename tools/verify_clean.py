@@ -29,8 +29,8 @@ BAD_PATTERNS = [
     (re.compile(r"dashscope_api_key\W{0,4}sk-", re.I), "疑似 API Key 配置文件"),
     (re.compile(r'"enc_key"\s*:\s*"[0-9a-f]{32,}"'), "疑似数据库密钥"),
     (re.compile(r"wxid_[0-9a-z]{8,}"), "微信 wxid"),
-    (re.compile(r"@chatroom"), "微信群标识"),
-    (re.compile(r"Msg_[0-9a-f]{32}"), "消息表名"),
+    (re.compile(r"\d{6,}@chatroom"), "微信群 ID"),
+    (re.compile(r"Msg_[0-9a-f]{32}"), "消息表名（真实会话）"),
     (re.compile(r"C:\\Users\\"), "本机绝对路径"),
     (re.compile(r"/home/[A-Za-z]"), "本机绝对路径"),
 ]

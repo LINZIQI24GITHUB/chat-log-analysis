@@ -129,9 +129,10 @@ def main() -> int:
            "--db-dir", os.path.join(tmp, "no-db", "db_storage"),
            "--self-wxid", "wxid_test",
            "--out", os.path.join(tmp, "wcdb.jsonl"))
-    assert r.returncode == 4, (r.returncode, r.stdout, r.stderr)
-    assert ("wcdb" in (r.stdout + r.stderr).lower()
-            or "snapshot" in (r.stdout + r.stderr).lower()), (r.stdout, r.stderr)
+    # 2 = 版本/平台闸门拦下；4 = 缺少 reader 或账号目录
+    assert r.returncode in (2, 4), (r.returncode, r.stdout, r.stderr)
+    assert any(k in (r.stdout + r.stderr).lower()
+               for k in ("wcdb", "snapshot", "clipboard", "微信")), (r.stdout, r.stderr)
 
     print("全部通过：解析 / 体检 / 指标 / 分片 / 证据校验 / 渲染 / 脱敏 / 采集层")
     print("临时目录:", tmp)

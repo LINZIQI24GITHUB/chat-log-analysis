@@ -12,13 +12,16 @@
 聊天记录 → 采集 → 指标 → 框架 → 判断 → 证据校验 → 网页报告
 ```
 
-## 仓库里没有什么
+## 仓库里有什么、没有什么
 
-- **没有**任何人的聊天记录、分析结果或报告。`examples/` 是一份 20 天的**合成**对话（虚构人物），只为跑通流程
-- **没有** API Key、wxid、数据库密钥、本机绝对路径
-- **没有**「从运行中的微信里取密钥」的代码
+**没有**：任何人的聊天记录、分析结果、API Key、wxid、本机绝对路径。
+`examples/` 是一份 20 天的**合成**对话（虚构人物），只为跑通流程。
 
-`tools/verify_clean.py` 会扫这些，CI 每次提交都跑一遍：
+**有**：`vendor/` 里的取密钥工具（第三方，MIT）。它会从**正在运行的微信进程**读取数据库密钥，
+只对你自己登录的账号有意义——密钥不写盘、不联网，只在内存和临时文件里存在几十秒，
+解密出的副本在分析结束后删除。没有微信运行时它什么也读不到。
+
+`tools/verify_clean.py` 会扫前一类东西，CI 每次提交都跑一遍：
 
 ```bash
 python tools/verify_clean.py
@@ -42,6 +45,7 @@ python tools/verify_clean.py
 
 ```bash
 # 0 采集（三选一）
+python scripts/ingest.py --contact 小林 --lane wcdb --out work/chat.jsonl        # 直接读本机微信
 python scripts/ingest.py --contact 小林 --lane snapshot --snapshot-dir "D:\wechat_data\账号" --out work/chat.jsonl
 python scripts/ingest.py --contact 小林 --lane clipboard --out work/chat.jsonl
 python scripts/normalize.py chat.txt --self 我 --out work/chat.jsonl
@@ -67,10 +71,13 @@ python scripts/render_report.py --stats work/stats.json --profile work/profile.j
 
 | 通道 | 前提 | 说明 |
 |---|---|---|
+| `wcdb` | Windows + 微信已登录 + 版本白名单 | 从本机微信读，含语音转写；需读进程内存取密钥 |
 | `snapshot` | 一个**已解密**的微信数据目录（`contact/` + `message/`） | 最省事；不解密、不碰进程 |
 | `clipboard` | `pip install pywin32` | 在微信里多选复制，脚本合并去重 |
 | `normalize` | 无 | 微信/WhatsApp/通用 JSONL 都能吃 |
 | `ocr` | 未实现 | 占位，会明确报错 |
+
+`wcdb` 会先要求确认「我是这段对话的当事人之一」，并比对微信版本；版本不在白名单会拒绝执行并建议改用 `clipboard`。详见 [PRIVACY.md](PRIVACY.md)。
 
 想接自己的数据源：实现 `sources/base.py` 里的两个方法，见 [sources/README.md](sources/README.md)。
 
