@@ -27,6 +27,26 @@ from base import SourceError  # noqa: E402
 
 
 
+
+ASR_HELP = """
+=== 语音转写需要阿里云百炼的 API Key ===
+
+  这个功能默认是关掉的（语音会以 [语音] 占位）。开启它意味着：
+    · 每条语音会被解码成 wav，上传到阿里云做识别
+    · 音频离开本机，受阿里云的服务条款约束
+
+  如果你确实要开，按这三步来：
+    1. 打开 https://bailian.console.aliyun.com/ ，右上角选地域
+    2. 左侧 API-KEY → 创建，复制那串 sk- 开头的字符串
+       （它只显示一次，务必先存好）
+    3. 设到环境变量，或者用参数传：
+         set DASHSCOPE_API_KEY=<你的key>        (Windows)
+         export DASHSCOPE_API_KEY=<你的key>     (macOS/Linux)
+         python scripts/ingest.py --contact XX --asr dashscope --asr-key <你的key>
+
+  不想开也没关系：去掉 --asr，报告会标明「N 条语音未转写」。
+"""
+
 def lane_available(lane: str) -> bool:
     """这个渠道的实现是否存在（开源版不带 wcdb）。"""
     mod = {"wcdb": "wcdb", "clipboard": "clipboard",
@@ -140,6 +160,12 @@ def main() -> int:
     if not consent.ensure(args.lane, version, args.state_dir,
                           accept=args.yes, i_am_party=args.i_am_party):
         return 3
+
+    # 2.5) 语音转写：没有 key 就当场说清楚，别等解密五分钟才报错
+    if args.asr != "off":
+        if not (args.asr_key or os.environ.get("DASHSCOPE_API_KEY")):
+            print(ASR_HELP, file=sys.stderr)
+            return 5
 
     # 3) 解析 + 拉取
     try:

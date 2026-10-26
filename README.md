@@ -81,6 +81,24 @@ python scripts/render_report.py --stats work/stats.json --profile work/profile.j
 
 想接自己的数据源：实现 `sources/base.py` 里的两个方法，见 [sources/README.md](sources/README.md)。
 
+## 语音转写（可选，默认关闭）
+
+不开启时，语音消息在报告里显示为 `[语音]`，并注明「N 条语音未转写」。
+
+要开的话三步：
+
+1. 打开 [阿里云百炼控制台](https://bailian.console.aliyun.com/) → 右上角选地域 → **API-KEY** → 创建
+   （这串 `sk-` 只显示一次，先存好）
+2. 设到环境变量 `DASHSCOPE_API_KEY`，或者用 `--asr-key` 传
+3. 采集时加 `--asr dashscope`
+
+```bash
+python scripts/ingest.py --contact 小林 --lane wcdb --asr dashscope
+```
+
+**注意**：音频会上传阿里云，受其服务条款约束；没有 key 时程序会停下并打印这三步，
+不会偷偷跳到「没有语音」继续跑。key 只从环境变量或参数读取，不写入任何文件。
+
 ## 分析框架（这是它和"让 AI 随便聊聊"的区别）
 
 判断不是凭直觉，每一条都挂一个理论构念。`references/frameworks/` 有六份可操作的指南：

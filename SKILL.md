@@ -57,6 +57,20 @@ python scripts/normalize.py chat.txt --self 我 --out work/chat.jsonl
 > 微信**有意义，密钥不落盘、不联网，解密副本在分析结束后删除。版本不在白名单时**不要硬跑**，
 > 让用户改用 `clipboard` 或 `snapshot`。
 
+### 语音（默认关闭）
+
+`--asr dashscope` 会把音频上传阿里云做识别，**默认不开**：不开时语音以 `[语音]` 占位，
+报告会在「这份分析看不到什么」里注明。
+
+**开启之前，必须先告诉用户三件事**，缺一个都不要开：
+
+1. 这需要阿里云百炼的 API Key（https://bailian.console.aliyun.com/ → API-KEY → 创建）
+2. 音频会**上传到阿里云**，不是本地处理
+3. 不开也能分析，只是语音没有文字内容
+
+用户没有 key 时：不要猜、不要借别人的 key，去掉 `--asr` 继续跑。
+`ingest.py` 在缺 key 时会直接退出（exit 5）并打印获取步骤。
+
 ### 资格确认（读取前必弹）
 
 第一次读取会要求输入「我已了解」，记录在 `~/.chat-log-analysis/consent.json`。
