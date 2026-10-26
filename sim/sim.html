@@ -44,6 +44,11 @@ body{margin:0;background:#c9c9c9;font-family:-apple-system,BlinkMacSystemFont,"P
 
 .search{margin:8px 12px;height:32px;background:#fff;border-radius:6px;display:flex;align-items:center;
   padding:0 10px;color:var(--muted);font-size:13px;gap:6px}
+.searchbar{display:flex;gap:8px;align-items:center;margin:8px 12px}
+.search{flex:1;height:32px;background:#fff;border-radius:6px;display:flex;align-items:center;
+  padding:0 10px;color:#999;font-size:13px;gap:6px;cursor:text}
+.addbtn{width:32px;height:32px;border-radius:6px;background:#07c160;color:#fff;display:flex;
+  align-items:center;justify-content:center;font-size:20px;line-height:1;cursor:pointer}
 .list{flex:1;overflow:auto;background:#fff}
 .row{display:flex;gap:12px;padding:12px;align-items:center;cursor:pointer;background:#fff}
 .row:active{background:#e6e6e6}
@@ -103,6 +108,11 @@ body{margin:0;background:#c9c9c9;font-family:-apple-system,BlinkMacSystemFont,"P
 .sheet .ghost{background:#f0f0f0;color:#333}
 .sheet .primary{background:var(--accent);color:#fff}
 .sheet .primary:disabled{background:#c8e6d2}
+.chatlist{max-height:320px;overflow:auto;margin-top:10px;border-top:.5px solid #eee}
+.chat{display:flex;justify-content:space-between;gap:8px;padding:10px 4px;border-bottom:.5px solid #f2f2f2;
+  font-size:13px;cursor:pointer}
+.chat:active{background:#f6f6f6}
+.chat .meta{color:#999;font-size:11px;white-space:nowrap}
 .hint{font-size:12px;margin-top:10px;line-height:1.6;white-space:pre-wrap}
 .hint.ok{color:#0a7d43}.hint.bad{color:#b04a3a}
 .more{margin-top:12px;font-size:12px;color:var(--accent);text-align:center;cursor:pointer}
@@ -124,7 +134,10 @@ body{margin:0;background:#c9c9c9;font-family:-apple-system,BlinkMacSystemFont,"P
   <div class="screen on" id="screen-list">
     <div class="navbar"><span class="btn"></span><span class="title">微信</span>
       <span class="btn" id="openSettings1">⚙</span></div>
-    <div class="search">🔍 搜索</div>
+    <div class="searchbar">
+      <div class="search" id="searchBox">🔍 搜索或导入新聊天</div>
+      <div class="addbtn" id="addBtn">＋</div>
+    </div>
     <div class="list" id="list"></div>
     <div class="disclaimer">模拟对话 · 不是真实微信</div>
   </div>
@@ -143,6 +156,19 @@ body{margin:0;background:#c9c9c9;font-family:-apple-system,BlinkMacSystemFont,"P
       <textarea id="ta" rows="1" placeholder="发送消息"></textarea>
       <span class="ib">😊</span>
       <button class="send" id="send">发送</button>
+    </div>
+  </div>
+
+  <div class="mask" id="importMask">
+    <div class="sheet">
+      <h3>导入聊天窗口</h3>
+      <p>从已解密的微信数据里选一个，自动分析并切换。</p>
+      <input id="chatSearch" placeholder="搜名字…" autocomplete="off">
+      <div class="chatlist" id="chatList"></div>
+      <div class="hint" id="importHint"></div>
+      <div class="actions">
+        <button class="ghost" id="cancelImport">关闭</button>
+      </div>
     </div>
   </div>
 
@@ -435,6 +461,64 @@ $("#connectCfg").onclick = async () => {
     $("#connectCfg").disabled = false;
   }
 };
+
+let allChats = [];
+
+function renderChatList(kw = "") {
+  const box = $("#chatList");
+  const list = allChats.filter(c => !kw || c.name.toLowerCase().includes(kw.toLowerCase()));
+  box.innerHTML = list.length ? "" : "<div class='chat'><span>没有匹配的会话</span></div>";
+  list.slice(0, 60).forEach(c => {
+    const row = document.createElement("div");
+    row.className = "chat";
+    row.innerHTML = `<span>${c.group ? "群 · " : ""}${c.name}</span>
+                     <span class="meta">${c.count} 条 · ${c.when}</span>`;
+    row.onclick = () => doImport(c);
+    box.appendChild(row);
+  });
+}
+
+async function openImport() {
+  $("#importMask").classList.add("on");
+  $("#importHint").textContent = "正在读取会话列表…";
+  $("#chatList").innerHTML = "";
+  try {
+    const d = await (await fetch("/api/chats")).json();
+    if (!d.ok) { $("#importHint").textContent = d.error; return; }
+    allChats = d.chats || [];
+    $("#importHint").textContent = `共 ${allChats.length} 个私聊窗口`;
+    renderChatList();
+  } catch (e) {
+    $("#importHint").textContent = "连不上本地服务：" + e.message;
+  }
+}
+
+async function doImport(c) {
+  if (c.group) { $("#importHint").textContent = "群聊不支持，选一个私聊"; return; }
+  $("#importHint").textContent = `正在导入「${c.name}」，大概十几秒…`;
+  try {
+    const r = await fetch("/api/import", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: c.name })
+    });
+    const d = await r.json();
+    if (!d.ok) { $("#importHint").textContent = "失败：" + d.error; return; }
+    let msg = `完成：${d.name}（${d.counts.total} 条，平均 ${d.avg_len} 字）`;
+    if (d.stale_days !== null && d.stale_days > 2) {
+      msg += `\n注意：数据只到 ${d.last_day}（${d.stale_days} 天前），`
+           + "来自旧的解密快照，文字可能不完整。要最新最全，用终端向导重新解密。";
+    }
+    $("#importHint").textContent = msg;
+    setTimeout(() => location.reload(), (d.stale_days !== null && d.stale_days > 2) ? 3500 : 1200);
+  } catch (e) {
+    $("#importHint").textContent = "失败：" + e.message;
+  }
+}
+
+$("#searchBox").onclick = openImport;
+$("#addBtn").onclick = openImport;
+$("#cancelImport").onclick = () => $("#importMask").classList.remove("on");
+$("#chatSearch").addEventListener("input", e => renderChatList(e.target.value));
 
 (async function init() {
   try {

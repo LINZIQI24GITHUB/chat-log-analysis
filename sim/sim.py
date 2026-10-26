@@ -20,6 +20,7 @@ import math
 import os
 import random
 import re
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -27,6 +28,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PERSONA: dict = {}
+DECRYPTED = ""     # 已解密的数据目录，供「导入新窗口」用
+IMPORTING = {"busy": False}
 LAST_SILENT = {"v": False}
 MAX_DELAY_S = 20.0   # 单条回复最长等待（可 --max-delay 调）
 REPLY_RATE_OVERRIDE = {"v": None}
@@ -249,6 +252,73 @@ def check_numbers(text: str, allowed: set) -> set:
     return {n for n in nums(text) if n not in allowed}
 
 
+
+def do_import(name: str) -> dict:
+    """在网页里导入一个新的聊天窗口：导出 -> 统计 -> 蒸馏 -> 切换。"""
+    global PERSONA
+    if not name:
+        return {"ok": False, "error": "没有指定名字"}
+    if not DECRYPTED:
+        return {"ok": False, "error": "启动时没找到已解密的数据目录，"
+                                      "请用 --decrypted 指定后重启"}
+    if IMPORTING["busy"]:
+        return {"ok": False, "error": "正在导入另一个，请稍等"}
+    IMPORTING["busy"] = True
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    work = os.path.join(root, "work")
+    os.makedirs(work, exist_ok=True)
+    chat = os.path.join(work, "chat.jsonl")
+    persona_path = os.path.join(root, "persona.json")
+
+    steps = [
+        [sys.executable, os.path.join(root, "scripts", "ingest.py"),
+         "--contact", name, "--lane", "snapshot", "--snapshot-dir", DECRYPTED,
+         "--yes", "--i-am-party", "--pick", "1",
+         "--state-dir", os.path.join(root, ".cache", "state"),
+         "--out", chat],
+        [sys.executable, os.path.join(root, "scripts", "run_all.py"), chat,
+         "--self", "我", "--other", name, "--out", work],
+        [sys.executable, os.path.join(root, "scripts", "persona.py"), chat,
+         "--stats", os.path.join(work, "stats.json"), "--name", name,
+         "--out", persona_path],
+    ]
+    try:
+        for cmd in steps:
+            print(f"[import] {' '.join(cmd[1:3])}", file=sys.stderr, flush=True)
+            r = subprocess.run(cmd, capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=600)
+            if r.returncode != 0:
+                return {"ok": False, "error": (r.stderr or r.stdout or "")[-300:]}
+        # 判断数据新旧：快照可能是旧的，文字也可能不完整
+        last_day = ""
+        try:
+            with open(chat, encoding="utf-8") as f:
+                for line in f:
+                    pass
+                last_day = (json.loads(line).get("time") or "")[:10]
+        except Exception:
+            pass
+        stale_days = None
+        if last_day:
+            try:
+                import datetime as _dt
+                stale_days = (_dt.date.today() - _dt.date.fromisoformat(last_day)).days
+            except ValueError:
+                pass
+        pj = json.load(open(persona_path, encoding="utf-8"))
+        PERSONA = pj
+        load_memory(pj.get("source", ""))
+        return {"ok": True, "name": pj["name"],
+                "counts": pj.get("counts", {}),
+                "avg_len": pj.get("style", {}).get("avg_len"),
+                "reply_rate": pj.get("timing", {}).get("reply_rate"),
+                "last_day": last_day, "stale_days": stale_days}
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:300]}
+    finally:
+        IMPORTING["busy"] = False
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass  # 不记请求日志（里面可能有对话内容）
@@ -265,6 +335,17 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html"):
             path = os.path.join(HERE, "sim.html")
             self._send(200, open(path, "rb").read(), "text/html; charset=utf-8")
+        elif self.path == "/api/chats":
+            try:
+                import setup as wizard
+                chats = wizard.list_chats(DECRYPTED, 200) if DECRYPTED else []
+                out = {"ok": True, "chats": [
+                    {"name": c["name"], "user": c["user"], "count": c["count"],
+                     "when": c["when"], "group": c["group"]} for c in chats]}
+            except Exception as e:
+                out = {"ok": False, "error": str(e)[:200]}
+            self._send(200, json.dumps(out, ensure_ascii=False).encode(),
+                       "application/json; charset=utf-8")
         elif self.path == "/persona.json":
             self._send(200, json.dumps(PERSONA, ensure_ascii=False).encode("utf-8"),
                        "application/json; charset=utf-8")
@@ -272,6 +353,28 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, b"not found", "text/plain")
 
     def do_POST(self):
+        if self.path == "/api/chats":
+            try:
+                import setup as wizard
+                chats = wizard.list_chats(DECRYPTED, 200) if DECRYPTED else []
+                out = {"ok": True, "chats": [
+                    {"name": c["name"], "user": c["user"], "count": c["count"],
+                     "when": c["when"], "group": c["group"]} for c in chats]}
+            except Exception as e:
+                out = {"ok": False, "error": str(e)[:200]}
+            self._send(200, json.dumps(out, ensure_ascii=False).encode(),
+                       "application/json; charset=utf-8")
+            return
+        if self.path == "/api/import":
+            n = int(self.headers.get("Content-Length") or 0)
+            try:
+                body = json.loads(self.rfile.read(n) or b"{}")
+            except json.JSONDecodeError:
+                body = {}
+            out = do_import(body.get("name") or "")
+            self._send(200, json.dumps(out, ensure_ascii=False).encode(),
+                       "application/json; charset=utf-8")
+            return
         if self.path == "/api/detect":
             n = int(self.headers.get("Content-Length") or 0)
             try:
@@ -419,6 +522,7 @@ def main() -> int:
     global PERSONA
     ap = argparse.ArgumentParser()
     ap.add_argument("--persona", default="persona.json")
+    ap.add_argument("--decrypted", default=None, help="已解密的数据目录，供网页导入用")
     ap.add_argument("--port", type=int, default=8777)
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--max-delay", type=float, default=20.0,
@@ -431,6 +535,10 @@ def main() -> int:
     if not os.path.exists(path):
         print(f"[error] 找不到 {path}，先跑 scripts/persona.py 生成", file=sys.stderr)
         return 2
+    global DECRYPTED
+    import setup as wizard
+    DECRYPTED = wizard.find_decrypted(args.decrypted)
+    print(f"  数据目录：{DECRYPTED}", flush=True)
     PERSONA = json.load(open(path, encoding="utf-8"))
     load_memory(PERSONA.get("source", ""))
     global MAX_DELAY_S
