@@ -1,0 +1,4 @@
+# 核心分析只用标准库。以下按需安装：
+zstandard>=0.21      # 读微信数据库（snapshot 通道）需要
+jieba>=0.42          # 可选：中文分词，没装会退回二元组
+pywin32>=306 ; sys_platform == "win32"   # 可选：clipboard 通道需要

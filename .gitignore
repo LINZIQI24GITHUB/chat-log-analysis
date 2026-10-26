@@ -1,0 +1,13 @@
+# 运行产物（含原文，别提交）
+work/
+work-*/
+*.pyc
+__pycache__/
+.tmp-*
+
+# 设计校验工具的产物
+.taste-skill/
+
+# 打包
+*.zip
+dist/
