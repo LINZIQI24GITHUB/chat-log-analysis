@@ -1,9 +1,11 @@
 # 运行产物（含原文，别提交）
 work/
+work-*/
+_*/
 persona.json
 persona.md
-_*/
-work-*/
+sim*.log
+sim*.err
 *.pyc
 __pycache__/
 .tmp-*

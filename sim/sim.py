@@ -83,7 +83,14 @@ def call_model(cfg: dict, persona: dict, history: list[dict]) -> str:
             data = json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "replace")[:300]
-        raise ValueError(f"接口返回 {e.code}：{detail}")
+        hint = ""
+        if e.code == 401 and len(key) != 35:
+            hint = f"（key 长度 {len(key)}，应该是 35，多半是粘贴不全）"
+        elif e.code == 401:
+            hint = ("（key 和 Base URL 不配套？常见：阿里云地址 + DeepSeek key。"
+                    "DeepSeek 用 https://api.deepseek.com/v1 + deepseek-chat；"
+                    "阿里云用 https://dashscope.aliyuncs.com/compatible-mode/v1 + qwen-plus）")
+        raise ValueError(f"接口返回 {e.code}{hint}：{detail}")
     except urllib.error.URLError as e:
         raise ValueError(f"连不上 {base}：{e.reason}")
 
@@ -92,6 +99,35 @@ def call_model(cfg: dict, persona: dict, history: list[dict]) -> str:
     text = re.sub(r"（.*?）|\(.*?\)", "", text).strip()   # 去掉旁白
     avg = int((persona.get("style") or {}).get("avg_len") or 10)
     return text[: max(30, avg * 4)]
+
+
+
+# 按「最可能」排序：先用 key 挨家试，谁认就用谁。用户只需要填一个 key。
+PROVIDERS = [
+    ("DeepSeek", "https://api.deepseek.com/v1", "deepseek-chat"),
+    ("阿里云百炼", "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus"),
+    ("阿里云百炼(国际)", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "qwen-plus"),
+    ("Kimi", "https://api.moonshot.cn/v1", "moonshot-v1-8k"),
+    ("智谱", "https://open.bigmodel.cn/api/paas/v4", "glm-4-flash"),
+    ("OpenAI", "https://api.openai.com/v1", "gpt-4o-mini"),
+]
+
+
+def detect_provider(key: str) -> dict:
+    """拿这把 key 挨家试一次；第一个通的就定下来。"""
+    tried = []
+    for name, base, model in PROVIDERS:
+        cfg = {"base_url": base, "model": model, "key": key}
+        try:
+            call_model(cfg, {"system_prompt": "你是连通性测试。只回一个字：好"},
+                       [{"role": "me", "text": "在吗"}])
+            print(f"[detect] {name} 通过", file=sys.stderr, flush=True)
+            return {"ok": True, "provider": name, "base_url": base, "model": model}
+        except ValueError as e:
+            msg = str(e)
+            tried.append({"provider": name, "error": msg[:120]})
+            print(f"[detect] {name} 失败: {msg[:100]}", file=sys.stderr, flush=True)
+    return {"ok": False, "tried": tried}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -117,6 +153,40 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, b"not found", "text/plain")
 
     def do_POST(self):
+        if self.path == "/api/detect":
+            n = int(self.headers.get("Content-Length") or 0)
+            try:
+                key = ((json.loads(self.rfile.read(n) or b"{}").get("key")) or "").strip()
+            except json.JSONDecodeError:
+                key = ""
+            if not key:
+                self._send(200, json.dumps({"ok": False, "error": "没有填 key"},
+                                           ensure_ascii=False).encode(),
+                           "application/json; charset=utf-8")
+                return
+            out = detect_provider(key)
+            self._send(200, json.dumps(out, ensure_ascii=False).encode(),
+                       "application/json; charset=utf-8")
+            return
+        if self.path == "/api/ping":
+            n = int(self.headers.get("Content-Length") or 0)
+            try:
+                cfg = (json.loads(self.rfile.read(n) or b"{}").get("config") or {})
+            except json.JSONDecodeError:
+                cfg = {}
+            key = cfg.get("key") or ""
+            print(f"[ping] base={cfg.get('base_url')!r} model={cfg.get('model')!r} "
+                  f"key_len={len(key)} key_head={key[:5]} key_tail={key[-4:] if key else ''}",
+                  file=sys.stderr, flush=True)
+            try:
+                probe = {"system_prompt": "你是测试。只回一个字：好"}
+                text = call_model(cfg, probe, [{"role": "me", "text": "在吗"}])
+                out = {"ok": True, "sample": text, "key_len": len(key)}
+            except ValueError as e:
+                out = {"ok": False, "error": str(e), "key_len": len(key)}
+            self._send(200, json.dumps(out, ensure_ascii=False).encode(),
+                       "application/json; charset=utf-8")
+            return
         if self.path != "/api/reply":
             self._send(404, b"not found", "text/plain")
             return
@@ -152,6 +222,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             text = call_model(cfg, persona, history)
         except ValueError as e:
+            print(f"[reply] 失败 key_len={len(cfg.get('key') or '')} err={str(e)[:120]}",
+                  file=sys.stderr, flush=True)
             self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False).encode(),
                        "application/json; charset=utf-8")
             return

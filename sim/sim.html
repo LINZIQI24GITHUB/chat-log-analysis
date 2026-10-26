@@ -7,15 +7,13 @@
 <style>
 :root{
   --bg:#ededed; --bar:#ededed; --line:#d9d9d9; --ink:#111; --muted:#888;
-  --green:#95ec69; --green-dark:#89d961; --white:#fff; --input:#f7f7f7;
-  --accent:#07c160;
+  --green:#95ec69; --white:#fff; --input:#f7f7f7; --accent:#07c160;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
 body{margin:0;background:#c9c9c9;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
   color:var(--ink);display:flex;align-items:center;justify-content:center;overflow:hidden}
 
-/* 手机壳 */
 .phone{position:relative;width:390px;height:844px;background:var(--bg);border-radius:44px;
   box-shadow:0 24px 60px rgba(0,0,0,.35),0 0 0 10px #111,0 0 0 12px #2b2b2b;
   overflow:hidden;display:flex;flex-direction:column}
@@ -41,25 +39,22 @@ body{margin:0;background:#c9c9c9;font-family:-apple-system,BlinkMacSystemFont,"P
   color:var(--muted);display:none}
 .navbar.typing .sub{display:block}
 
-/* 屏幕切换 */
 .screen{flex:1;display:none;flex-direction:column;min-height:0}
 .screen.on{display:flex}
 
-/* 会话列表 */
 .search{margin:8px 12px;height:32px;background:#fff;border-radius:6px;display:flex;align-items:center;
   padding:0 10px;color:var(--muted);font-size:13px;gap:6px}
 .list{flex:1;overflow:auto;background:#fff}
 .row{display:flex;gap:12px;padding:12px;align-items:center;cursor:pointer;background:#fff}
 .row:active{background:#e6e6e6}
 .avatar{width:48px;height:48px;border-radius:6px;flex:0 0 48px;display:flex;align-items:center;
-  justify-content:center;color:#fff;font-size:19px;font-weight:600;letter-spacing:.5px}
+  justify-content:center;color:#fff;font-size:19px;font-weight:600}
 .row .mid{flex:1;min-width:0}
 .row .nm{font-size:16px;margin-bottom:3px}
 .row .pv{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row .rt{font-size:11px;color:#b2b2b2;align-self:flex-start;margin-top:4px}
 
-/* 聊天区 */
-.msgs{flex:1;overflow-y:auto;padding:14px 12px 10px;background:var(--bg);scroll-behavior:smooth}
+.msgs{flex:1;overflow-y:auto;padding:14px 12px 10px;background:var(--bg)}
 .day{text-align:center;margin:10px 0}
 .day span{font-size:11px;color:#fff;background:#d2d2d2;padding:2px 6px;border-radius:3px}
 .msg{display:flex;gap:8px;margin:0 0 14px;align-items:flex-start}
@@ -74,29 +69,25 @@ body{margin:0;background:#c9c9c9;font-family:-apple-system,BlinkMacSystemFont,"P
 .msg.me .b::after{right:-9px;border-left-color:var(--green)}
 .msg .a{width:38px;height:38px;border-radius:5px;flex:0 0 38px;display:flex;align-items:center;
   justify-content:center;color:#fff;font-size:15px;font-weight:600}
-.tip{text-align:center;font-size:11px;color:#9a9a9a;margin:8px 0}
-.sys{text-align:center;font-size:12px;color:#b04a3a;margin:6px 0 12px;padding:0 12px}
+.sys{text-align:center;font-size:12px;color:#b04a3a;margin:6px 0 12px;padding:0 12px;line-height:1.5}
 
-/* 正在输入 */
 .dots{display:inline-flex;gap:4px;align-items:center;height:12px}
 .dots i{width:6px;height:6px;border-radius:50%;background:#b5b5b5;animation:blink 1.2s infinite}
 .dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
-@keyframes blink{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
+@keyframes blink{0%,60%,100%{opacity:.25}30%{opacity:1}}
 
-/* 输入栏 */
 .disclaimer{padding:5px 12px;background:#f3f3f3;border-top:.5px solid var(--line);
   font-size:10.5px;color:#8a8a8a;text-align:center;line-height:1.4}
 .inputbar{flex:0 0 auto;background:var(--input);border-top:.5px solid var(--line);
-  padding:7px 9px calc(7px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:flex-end}
+  padding:7px 9px;display:flex;gap:8px;align-items:flex-end}
 .inputbar .ib{width:30px;height:32px;display:flex;align-items:center;justify-content:center;
-  color:#555;font-size:20px;cursor:pointer;flex:0 0 30px}
+  color:#555;font-size:20px;flex:0 0 30px}
 .inputbar textarea{flex:1;resize:none;border:0;outline:0;background:#fff;border-radius:5px;
   padding:8px 10px;font:inherit;font-size:15px;line-height:1.4;max-height:96px;min-height:34px}
 .send{background:var(--accent);color:#fff;border:0;border-radius:5px;height:34px;padding:0 14px;
   font-size:14px;cursor:pointer;flex:0 0 auto}
 .send:disabled{background:#c8e6d2}
 
-/* 设置 */
 .mask{position:absolute;inset:0;background:rgba(0,0,0,.45);display:none;z-index:9;
   align-items:center;justify-content:center;padding:22px}
 .mask.on{display:flex}
@@ -104,13 +95,20 @@ body{margin:0;background:#c9c9c9;font-family:-apple-system,BlinkMacSystemFont,"P
 .sheet h3{margin:0 0 4px;font-size:16px}
 .sheet p{margin:0 0 14px;font-size:12px;color:var(--muted);line-height:1.5}
 .sheet label{display:block;font-size:12px;color:#555;margin:10px 0 4px}
-.sheet input{width:100%;border:1px solid #ddd;border-radius:7px;padding:9px 10px;font:inherit;
+.sheet input{width:100%;border:1px solid #ddd;border-radius:7px;padding:10px;font:inherit;
   font-size:13px;outline:0}
-.sheet .actions{display:flex;gap:10px;margin-top:16px}
+.sheet .actions{display:flex;gap:10px;margin-top:12px}
 .sheet button{flex:1;height:40px;border-radius:8px;border:0;font-size:14px;cursor:pointer}
 .sheet .ghost{background:#f0f0f0;color:#333}
 .sheet .primary{background:var(--accent);color:#fff}
-.warn{margin-top:12px;font-size:11px;color:#a05a00;background:#fff6e5;border-radius:6px;padding:8px 10px;line-height:1.5}
+.sheet .primary:disabled{background:#c8e6d2}
+.hint{font-size:12px;margin-top:10px;line-height:1.6;white-space:pre-wrap}
+.hint.ok{color:#0a7d43}.hint.bad{color:#b04a3a}
+.more{margin-top:12px;font-size:12px;color:var(--accent);text-align:center;cursor:pointer}
+.manual{display:none;margin-top:6px}
+.manual.on{display:block}
+.warn{margin-top:12px;font-size:11px;color:#a05a00;background:#fff6e5;border-radius:6px;
+  padding:8px 10px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -122,16 +120,14 @@ body{margin:0;background:#c9c9c9;font-family:-apple-system,BlinkMacSystemFont,"P
       <span>5G</span><span class="batt"></span></span>
   </div>
 
-  <!-- 会话列表 -->
   <div class="screen on" id="screen-list">
     <div class="navbar"><span class="btn"></span><span class="title">微信</span>
       <span class="btn" id="openSettings1">⚙</span></div>
     <div class="search">🔍 搜索</div>
     <div class="list" id="list"></div>
-    <div class="disclaimer" id="listNote">模拟对话 · 不是真实微信</div>
+    <div class="disclaimer">模拟对话 · 不是真实微信</div>
   </div>
 
-  <!-- 聊天页 -->
   <div class="screen" id="screen-chat">
     <div class="navbar" id="chatNav">
       <span class="btn" id="back">‹</span>
@@ -149,22 +145,25 @@ body{margin:0;background:#c9c9c9;font-family:-apple-system,BlinkMacSystemFont,"P
     </div>
   </div>
 
-  <!-- 设置 -->
   <div class="mask" id="mask">
     <div class="sheet">
-      <h3>对话接口</h3>
-      <p>用你自己的模型来扮演对方。Key 只存在这台机器的浏览器里，不会写进任何文件。</p>
-      <label>Base URL（OpenAI 兼容）</label>
-      <input id="cfgUrl" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1">
-      <label>模型</label>
-      <input id="cfgModel" placeholder="qwen-plus">
-      <label>API Key</label>
-      <input id="cfgKey" type="password" placeholder="sk-...">
-      <div class="warn">模拟内容由模型生成，可能不符合事实。请不要把这些话当作对方真实的想法，也不要转发给对方。</div>
+      <h3>粘贴 API Key</h3>
+      <p>只填这一个。地址和模型会自动识别：拿这把 key 挨家试，谁认就用谁。
+         Key 只存在这台机器的浏览器里，不写进任何文件。</p>
+      <input id="cfgKey" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false">
+      <div class="hint" id="hint"></div>
       <div class="actions">
         <button class="ghost" id="cancelCfg">取消</button>
-        <button class="primary" id="saveCfg">保存</button>
+        <button class="primary" id="connectCfg">连接</button>
       </div>
+      <div class="more" id="moreToggle">手动设置地址和模型</div>
+      <div class="manual" id="manualBox">
+        <label>Base URL</label>
+        <input id="cfgUrl" placeholder="https://api.deepseek.com/v1">
+        <label>模型</label>
+        <input id="cfgModel" placeholder="deepseek-chat">
+      </div>
+      <div class="warn">模拟内容由模型生成，可能不符合事实。请不要把这些话当作对方真实的想法，也不要转发给对方。</div>
     </div>
   </div>
 </div>
@@ -172,52 +171,48 @@ body{margin:0;background:#c9c9c9;font-family:-apple-system,BlinkMacSystemFont,"P
 <script>
 const $ = s => document.querySelector(s);
 const CFG_KEY = "chatlog-sim-config";
-let persona = null, history = [], busy = false;
-
-function cfg() {
-  try { return JSON.parse(localStorage.getItem(CFG_KEY) || "{}"); } catch { return {}; }
-}
-function avatarColor(name) {
-  let h = 0; for (const ch of (name || "?")) h = (h * 31 + ch.codePointAt(0)) % 360;
-  return `hsl(${h},42%,52%)`;
-}
 const EMOJI = {
   "[表情]":"🙂","[破涕为笑]":"😂","[流泪]":"😭","[捂脸]":"🤦","[旺柴]":"🐶",
   "[强]":"👍","[心碎]":"💔","[裂开]":"💔","[偷笑]":"🤭","[色]":"😍","[脸红]":"😊",
-  "[呲牙]":"😁","[可怜]":"🥺","[握手]":"🤝","[抱拳]":"🙏","[旺柴]":"🐶"
+  "[呲牙]":"😁","[可怜]":"🥺","[握手]":"🤝","[抱拳]":"🙏"
 };
-function pretty(text) {
-  return String(text || "").replace(/\[[^\]]{1,6}\]/g, m => EMOJI[m] || m);
+let persona = null, history = [], busy = false;
+
+const cfg = () => { try { return JSON.parse(localStorage.getItem(CFG_KEY) || "{}"); } catch { return {}; } };
+const pretty = t => String(t || "").replace(/\[[^\]]{1,6}\]/g, m => EMOJI[m] || m);
+const initial = n => (n || "?").trim().slice(0, 1).toUpperCase();
+function color(name) {
+  let h = 0; for (const ch of (name || "?")) h = (h * 31 + ch.codePointAt(0)) % 360;
+  return `hsl(${h},42%,52%)`;
 }
-function initial(name) { return (name || "?").trim().slice(0, 1).toUpperCase(); }
-function nowHM() {
+const nowHM = () => {
   const d = new Date();
   return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
-}
+};
 
 function renderList() {
   const recent = persona.recent || [];
   const last = [...recent].reverse().find(m => !/^\[[^\]]{1,6}\]$/.test(m.text)) || recent.slice(-1)[0];
   $("#list").innerHTML = `
     <div class="row" id="rowChat">
-      <div class="avatar" style="background:${avatarColor(persona.name)}">${initial(persona.name)}</div>
+      <div class="avatar" style="background:${color(persona.name)}">${initial(persona.name)}</div>
       <div class="mid">
         <div class="nm">${persona.name}</div>
-        <div class="pv">${last ? (last.role === "me" ? "我: " : "") + last.text : "开始聊天"}</div>
+        <div class="pv">${last ? (last.role === "me" ? "我: " : "") + pretty(last.text) : "开始聊天"}</div>
       </div>
       <div class="rt">${nowHM()}</div>
     </div>`;
   $("#rowChat").onclick = openChat;
   $("#chatName").textContent = persona.name;
   $("#chatNote").textContent =
-    `模拟对话 · 基于 ${persona.counts?.total || 0} 条记录生成，不是${persona.name}本人`;
+    `模拟对话 · 基于 ${(persona.counts || {}).total || 0} 条记录生成，不是${persona.name}本人`;
 }
 
 function bubble(role, text) {
   const wrap = document.createElement("div");
   wrap.className = "msg " + (role === "me" ? "me" : "her");
   const name = role === "me" ? "我" : persona.name;
-  wrap.innerHTML = `<div class="a" style="background:${avatarColor(name)}">${initial(name)}</div>
+  wrap.innerHTML = `<div class="a" style="background:${color(name)}">${initial(name)}</div>
                     <div class="b"></div>`;
   wrap.querySelector(".b").textContent = pretty(text);
   return wrap;
@@ -229,6 +224,13 @@ function pushMsg(role, text) {
   history.push({ role, text });
 }
 
+function sysLine(msg) {
+  const d = document.createElement("div");
+  d.className = "sys"; d.textContent = msg;
+  $("#msgs").appendChild(d);
+  $("#msgs").scrollTop = $("#msgs").scrollHeight;
+}
+
 function openChat() {
   $("#screen-list").classList.remove("on");
   $("#screen-chat").classList.add("on");
@@ -237,7 +239,7 @@ function openChat() {
     if (recent.length) {
       const day = document.createElement("div");
       day.className = "day";
-      day.innerHTML = `<span>之前的聊天记录</span>`;
+      day.innerHTML = "<span>之前的聊天记录</span>";
       $("#msgs").appendChild(day);
     }
     recent.forEach(m => pushMsg(m.role, m.text));
@@ -250,13 +252,12 @@ async function send() {
   if (!text || busy) return;
   ta.value = ""; ta.style.height = "auto";
   pushMsg("me", text);
-
   busy = true; $("#send").disabled = true;
+
   let data;
   try {
     const r = await fetch("/api/reply", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ history, config: cfg() })
     });
     data = await r.json();
@@ -264,20 +265,18 @@ async function send() {
     sysLine("连不上本地服务，确认 python sim/sim.py 还在跑");
     busy = false; $("#send").disabled = false; return;
   }
-
-  if (data.error) {
-    sysLine(data.error);
+  if (!data || data.error) {
+    sysLine((data && data.error) || "接口没有返回内容");
     busy = false; $("#send").disabled = false; return;
   }
 
   const delay = Math.max(400, data.delay_ms || 2000);
   const typingMs = Math.max(600, Math.min(delay, data.typing_ms || 1200));
 
-  // 先等一段「不在屏幕前」的时间，再显示正在输入
   setTimeout(() => {
     const t = document.createElement("div");
     t.className = "msg her"; t.id = "typing";
-    t.innerHTML = `<div class="a" style="background:${avatarColor(persona.name)}">${initial(persona.name)}</div>
+    t.innerHTML = `<div class="a" style="background:${color(persona.name)}">${initial(persona.name)}</div>
                    <div class="b"><span class="dots"><i></i><i></i><i></i></span></div>`;
     $("#msgs").appendChild(t);
     $("#msgs").scrollTop = $("#msgs").scrollHeight;
@@ -286,29 +285,27 @@ async function send() {
     setTimeout(() => {
       t.remove();
       $("#chatNav").classList.remove("typing");
-      if (data.reply) {
-        pushMsg("her", data.text);
-      } else {
-        // 她不回：什么都不发生，这才是真实的部分
-        $("#msgs").scrollTop = $("#msgs").scrollHeight;
-      }
+      if (data.reply) pushMsg("her", data.text);
       busy = false; $("#send").disabled = false;
     }, typingMs);
   }, Math.max(300, delay - typingMs));
 }
 
-function sysLine(msg) {
-  const d = document.createElement("div");
-  d.className = "sys"; d.textContent = msg;
-  $("#msgs").appendChild(d);
-  $("#msgs").scrollTop = $("#msgs").scrollHeight;
-}
-
 function openSettings() {
   const c = cfg();
+  $("#cfgKey").value = c.key || "";
   $("#cfgUrl").value = c.base_url || "";
   $("#cfgModel").value = c.model || "";
-  $("#cfgKey").value = c.key || "";
+  const hint = $("#hint");
+  if (c.key && c.provider) {
+    hint.className = "hint ok";
+    hint.textContent = `当前：${c.provider} · ${c.model}`;
+  } else if (c.key && c.base_url) {
+    hint.className = "hint ok";
+    hint.textContent = `当前（手动）：${c.base_url} · ${c.model}`;
+  } else {
+    hint.className = "hint"; hint.textContent = "";
+  }
   $("#mask").classList.add("on");
 }
 
@@ -327,13 +324,52 @@ $("#ta").addEventListener("input", e => {
 $("#openSettings1").onclick = openSettings;
 $("#openSettings2").onclick = openSettings;
 $("#cancelCfg").onclick = () => $("#mask").classList.remove("on");
-$("#saveCfg").onclick = () => {
-  localStorage.setItem(CFG_KEY, JSON.stringify({
-    base_url: $("#cfgUrl").value.trim().replace(/\/$/, ""),
-    model: $("#cfgModel").value.trim(),
-    key: $("#cfgKey").value.trim()
-  }));
-  $("#mask").classList.remove("on");
+$("#moreToggle").onclick = () => $("#manualBox").classList.toggle("on");
+
+$("#connectCfg").onclick = async () => {
+  const key = $("#cfgKey").value.trim();
+  const hint = $("#hint");
+  if (!key) { hint.className = "hint bad"; hint.textContent = "先把 key 粘进来"; return; }
+
+  const manualUrl = $("#cfgUrl").value.trim().replace(/\/$/, "");
+  const manualModel = $("#cfgModel").value.trim();
+
+  if (manualUrl) {
+    localStorage.setItem(CFG_KEY, JSON.stringify({ key, base_url: manualUrl, model: manualModel || "deepseek-chat" }));
+    hint.className = "hint ok";
+    hint.textContent = `已保存（手动）：${manualUrl} · ${manualModel || "deepseek-chat"}`;
+    setTimeout(() => $("#mask").classList.remove("on"), 800);
+    return;
+  }
+
+  hint.className = "hint";
+  hint.textContent = "正在识别这是哪家的 key…";
+  $("#connectCfg").disabled = true;
+  try {
+    const r = await fetch("/api/detect", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      localStorage.setItem(CFG_KEY, JSON.stringify({
+        key, base_url: d.base_url, model: d.model, provider: d.provider
+      }));
+      hint.className = "hint ok";
+      hint.textContent = `识别成功：${d.provider} · ${d.model}`;
+      setTimeout(() => $("#mask").classList.remove("on"), 900);
+    } else {
+      hint.className = "hint bad";
+      hint.textContent = "这个 key 没被任何一家认出来。\n"
+        + "· 检查是否复制完整\n"
+        + "· 或者是自建服务，点下面「手动设置地址和模型」";
+    }
+  } catch (e) {
+    hint.className = "hint bad";
+    hint.textContent = "连不上本地服务：" + e.message;
+  } finally {
+    $("#connectCfg").disabled = false;
+  }
 };
 
 (async function init() {
@@ -343,8 +379,7 @@ $("#saveCfg").onclick = () => {
     persona = { name: "对方", counts: {}, recent: [] };
   }
   renderList();
-  const c = cfg();
-  if (!c.base_url) setTimeout(openSettings, 400);
+  if (!cfg().key) setTimeout(openSettings, 400);
 })();
 </script>
 </body>
