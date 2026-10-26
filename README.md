@@ -81,23 +81,25 @@ python scripts/render_report.py --stats work/stats.json --profile work/profile.j
 
 想接自己的数据源：实现 `sources/base.py` 里的两个方法，见 [sources/README.md](sources/README.md)。
 
-## 语音转写（可选，默认关闭）
+## 语音转写（可选）
 
-不开启时，语音消息在报告里显示为 `[语音]`，并注明「N 条语音未转写」。
+**不开启也能分析**：文字消息照常，只是语音部分没有内容，报告里显示为 `[语音]`，
+并在「看不到什么」里注明「N 条语音未转写」。
 
-要开的话三步：
+要连语音一起分析，需要**阿里云百炼的 API Key**：
 
-1. 打开 [阿里云百炼控制台](https://bailian.console.aliyun.com/) → 右上角选地域 → **API-KEY** → 创建
-   （这串 `sk-` 只显示一次，先存好）
-2. 设到环境变量 `DASHSCOPE_API_KEY`，或者用 `--asr-key` 传
+1. 打开 [阿里云百炼控制台](https://bailian.console.aliyun.com/) → 右上角选地域 →
+   **API-KEY** → 创建（那串 key 只显示一次，先存好）
+2. 设环境变量 `DASHSCOPE_API_KEY`，或传 `--asr-key`
 3. 采集时加 `--asr dashscope`
 
 ```bash
 python scripts/ingest.py --contact 小林 --lane wcdb --asr dashscope
 ```
 
-**注意**：音频会上传阿里云，受其服务条款约束；没有 key 时程序会停下并打印这三步，
-不会偷偷跳到「没有语音」继续跑。key 只从环境变量或参数读取，不写入任何文件。
+**音频会上传**：每条语音解码成 wav 后发给阿里云百炼的语音识别服务，不是本地处理。
+没有 Key 时程序会停下并打印这三步，不会偷偷降级；采集完发现语音未转写也会再提示一次。
+Key 只从环境变量或参数读取，不写入任何文件。
 
 ## 分析框架（这是它和"让 AI 随便聊聊"的区别）
 

@@ -66,6 +66,13 @@ def main() -> int:
         warnings.append("一方消息过少，互动结构无法比较（可能只复制了单侧）")
     if media and media > len(rows) * 0.3:
         warnings.append(f"媒体消息占 {media / len(rows):.0%}，文字量偏少，情绪判断证据不足")
+    voice_plain = sum(1 for r in rows
+                       if r.get("kind") == "voice" and (r.get("text") or "").strip() in ("[语音]", ""))
+    if voice_plain:
+        warnings.append(
+            f"{voice_plain} 条语音没有转写（显示为 [语音]）——"
+            f"需要的话用 --asr dashscope，音频会上传阿里云")
+
     if gaps:
         total_missing = sum(g["missing_days"] for g in gaps)
         if total_missing >= 3:

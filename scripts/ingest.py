@@ -29,22 +29,23 @@ from base import SourceError  # noqa: E402
 
 
 ASR_HELP = """
-=== 语音转写需要阿里云百炼的 API Key ===
+=== 语音转写是可选项：需要阿里云百炼的 API Key ===
 
-  这个功能默认是关掉的（语音会以 [语音] 占位）。开启它意味着：
-    · 每条语音会被解码成 wav，上传到阿里云做识别
-    · 音频离开本机，受阿里云的服务条款约束
+  用途：把聊天里的语音消息转成文字。不转写，这部分内容就分析不到。
 
-  如果你确实要开，按这三步来：
-    1. 打开 https://bailian.console.aliyun.com/ ，右上角选地域
-    2. 左侧 API-KEY → 创建，复制那串 sk- 开头的字符串
-       （它只显示一次，务必先存好）
-    3. 设到环境变量，或者用参数传：
-         set DASHSCOPE_API_KEY=<你的key>        (Windows)
-         export DASHSCOPE_API_KEY=<你的key>     (macOS/Linux)
-         python scripts/ingest.py --contact XX --asr dashscope --asr-key <你的key>
+  · Key 从哪来
+      阿里云百炼控制台  https://bailian.console.aliyun.com/
+      → 右上角选地域 → 左侧「API-KEY」→ 创建
+      （那串 key 只显示一次，先存好）
 
-  不想开也没关系：去掉 --asr，报告会标明「N 条语音未转写」。
+  · 音频去哪
+      每条语音会解码成 wav，上传到阿里云百炼的语音识别服务做转写。
+      音频会离开本机，不是本地处理。
+
+  · 不给 Key 也能分析
+      文字消息照常分析，只是语音部分没有内容：报告里显示为 [语音]，
+      并在「看不到什么」里注明「N 条语音未转写」。
+      所以没有 key 时，去掉 --asr 继续跑就行，不用停下来。
 """
 
 def lane_available(lane: str) -> bool:
@@ -184,6 +185,15 @@ def main() -> int:
         return 4
     finally:
         src.close()
+
+    voice_plain = sum(1 for r in rows
+                      if r.get("kind") == "voice" and (r.get("text") or "").strip() in ("[语音]", ""))
+    if voice_plain and args.asr == "off":
+        print(f"\n[提示] 这个会话有 {voice_plain} 条语音，本次没有转写（报告里显示为 [语音]）。")
+        print("       想连语音一起分析：准备一个阿里云百炼 API Key")
+        print("       （https://bailian.console.aliyun.com/ → API-KEY），")
+        print("       重跑并加 --asr dashscope。音频会上传到阿里云，不是本地处理。")
+        print("       不加也照样能出报告，只是少了语音这部分内容。")
 
     if not rows:
         print("[error] 没有取到消息", file=sys.stderr)
