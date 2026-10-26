@@ -192,6 +192,24 @@ python scripts/render_report.py --stats work/stats.json --profile work/profile.j
 
 默认**对方姓名脱敏**为「对方」；用户明确要求时才加 `--reveal`。
 
+### 第 6 步（可选）：模拟对话
+
+报告交付后，如果用户想「继续和他聊」，可以走这条：
+
+```bash
+python scripts/persona.py work/chat.jsonl --stats work/stats.json --out persona.json
+python sim/sim.py --persona persona.json
+```
+
+给用户的说明必须包含：
+
+1. 这是**模拟**，用他自己的模型扮演，不是那个人
+2. API key 只存浏览器，本地服务不写盘
+3. 回复的节奏和长度来自记录统计（可以说出具体数字：平均 N 字、中位 N 秒）
+4. 生成的话不要转发给对方
+
+不要主动推销这个功能；用户没提就不要做。
+
 ## `analysis.json` 结构
 
 ```json

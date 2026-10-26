@@ -18,6 +18,7 @@ import sys
 BAD_NAMES = {
     "chat.jsonl", "digest.txt", "stats.json", "keywords.json", "profile.json",
     "ingest_meta.json", "consent.json", "all_keys.json",
+    "persona.json", "persona.md",
 }
 
 # 目录名：work/ 和 work-xxx/ 都是产物

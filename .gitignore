@@ -1,5 +1,7 @@
 # 运行产物（含原文，别提交）
 work/
+persona.json
+persona.md
 _*/
 work-*/
 *.pyc

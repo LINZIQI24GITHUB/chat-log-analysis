@@ -91,6 +91,17 @@ def main() -> int:
     md2 = open(os.path.join(tmp, "report_reveal.md"), encoding="utf-8").read()
     assert "陈屿" in md2
 
+    # ---------- 说话档案 ----------
+    per = os.path.join(tmp, "persona.json")
+    run("scripts/persona.py", chat, "--stats", os.path.join(tmp, "stats.json"),
+        "--out", per)
+    pj = json.load(open(per, encoding="utf-8"))
+    assert pj["counts"]["total"] == 189, pj["counts"]
+    assert pj["style"]["avg_len"] > 0
+    assert len(pj["system_prompt"]) > 100, "system_prompt 太短"
+    assert pj["timing"].get("p50_sec"), "缺少时延统计"
+    assert pj["recent"], "缺少开场语料"
+
     # ---------- 采集层 ----------
     import subprocess as sp
 
