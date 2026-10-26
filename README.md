@@ -1,5 +1,7 @@
 # chat-log-analysis
 
+![test](https://github.com/LINZIQI24GITHUB/chat-log-analysis/actions/workflows/test.yml/badge.svg)
+
 ![报告预览](docs/preview.png)
 
 把一段聊天记录变成一份**有证据的关系报告**。
