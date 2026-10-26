@@ -73,7 +73,8 @@ def call_model(cfg: dict, persona: dict, history: list[dict]) -> str:
                  "content": "只输出她这一条回复的纯文本，不要引号、不要解释。"})
 
     body = json.dumps({"model": model, "messages": msgs,
-                       "temperature": 0.9, "max_tokens": 120}).encode("utf-8")
+                       "temperature": 0.9, "max_tokens": 120,
+                       "frequency_penalty": 0.7, "presence_penalty": 0.5}).encode("utf-8")
     req = urllib.request.Request(
         base + "/chat/completions", data=body,
         headers={"Content-Type": "application/json",
@@ -95,10 +96,35 @@ def call_model(cfg: dict, persona: dict, history: list[dict]) -> str:
         raise ValueError(f"连不上 {base}：{e.reason}")
 
     text = (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
+    if os.environ.get("SIM_DEBUG") == "1":
+        print(f"[raw] {text!r} finish={(data.get('choices') or [{}])[0].get('finish_reason')}",
+              file=sys.stderr, flush=True)
     text = re.sub(r"^[\"'「『]|[\"'」』]$", "", text.strip())
     text = re.sub(r"（.*?）|\(.*?\)", "", text).strip()   # 去掉旁白
     avg = int((persona.get("style") or {}).get("avg_len") or 10)
-    return text[: max(30, avg * 4)]
+    text = text[: max(30, avg * 4)]
+    said = {str(h.get("text")) for h in history if h.get("role") != "me"}
+    if text and text in said:
+        # 复读机：把刚才那句塞回去，要求换一句
+        msgs.append({"role": "assistant", "content": text})
+        msgs.append({"role": "system", "content": "你刚才说的和之前一模一样了。换一句，别重复。"})
+        body = json.dumps({"model": model, "messages": msgs, "temperature": 1.0,
+                           "max_tokens": 120, "frequency_penalty": 0.9,
+                           "presence_penalty": 0.7}).encode("utf-8")
+        req = urllib.request.Request(
+            base + "/chat/completions", data=body,
+            headers={"Content-Type": "application/json",
+                     "Authorization": "Bearer " + key})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                data = json.loads(r.read().decode("utf-8"))
+            retry = (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+            retry = re.sub(r"^[\"'「『]|[\"'」』]$", "", retry)
+            if retry and retry not in said:
+                text = retry[: max(30, avg * 4)]
+        except Exception:
+            pass
+    return text
 
 
 
@@ -200,6 +226,7 @@ class Handler(BaseHTTPRequestHandler):
         persona = PERSONA
         history = payload.get("history") or []
         cfg = payload.get("config") or {}
+        turn = int(payload.get("turn") or 0)          # 这是第几次发消息
 
         reply_rate = _num((persona.get("timing") or {}).get("reply_rate"), 0.8)
         if REPLY_RATE_OVERRIDE["v"] is not None:
@@ -210,11 +237,15 @@ class Handler(BaseHTTPRequestHandler):
         silent = random.random() > reply_rate
         if silent and LAST_SILENT["v"]:
             silent = False
+        if turn <= 3:                                  # 热身：前 3 句一定回
+            silent = False
         LAST_SILENT["v"] = silent
         if silent:
             # 她不回的情况：给一个更长的延迟，前端显示「正在输入」然后静默
+            print(f"[reply] turn={turn} silent=True key_len={len(cfg.get('key') or '')}",
+                  file=sys.stderr, flush=True)
             self._send(200, json.dumps({
-                "reply": False, "delay_ms": int(sample_delay_ms(persona) * 1.6),
+                "reply": False, "delay_ms": min(12000, int(sample_delay_ms(persona) * 1.2)),
                 "typing_ms": random.randint(2500, 6000)}, ensure_ascii=False).encode(),
                 "application/json; charset=utf-8")
             return
@@ -229,6 +260,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         delay = sample_delay_ms(persona)
+        print(f"[reply] turn={turn} silent=False delay={delay/1000:.1f}s "
+              f"len={len(text)} key_len={len(cfg.get('key') or '')}",
+              file=sys.stderr, flush=True)
         self._send(200, json.dumps({
             "reply": True, "text": text, "delay_ms": delay,
             "typing_ms": max(900, int(delay * 0.35)),

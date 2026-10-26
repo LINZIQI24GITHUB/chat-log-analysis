@@ -69,6 +69,7 @@ body{margin:0;background:#c9c9c9;font-family:-apple-system,BlinkMacSystemFont,"P
 .msg.me .b::after{right:-9px;border-left-color:var(--green)}
 .msg .a{width:38px;height:38px;border-radius:5px;flex:0 0 38px;display:flex;align-items:center;
   justify-content:center;color:#fff;font-size:15px;font-weight:600}
+.tip{text-align:center;font-size:11px;color:#a8a8a8;margin:2px 0 14px}
 .sys{text-align:center;font-size:12px;color:#b04a3a;margin:6px 0 12px;padding:0 12px;line-height:1.5}
 
 .dots{display:inline-flex;gap:4px;align-items:center;height:12px}
@@ -176,7 +177,7 @@ const EMOJI = {
   "[强]":"👍","[心碎]":"💔","[裂开]":"💔","[偷笑]":"🤭","[色]":"😍","[脸红]":"😊",
   "[呲牙]":"😁","[可怜]":"🥺","[握手]":"🤝","[抱拳]":"🙏"
 };
-let persona = null, history = [], busy = false;
+let persona = null, history = [], busy = false, sent = 0;
 
 const cfg = () => { try { return JSON.parse(localStorage.getItem(CFG_KEY) || "{}"); } catch { return {}; } };
 const pretty = t => String(t || "").replace(/\[[^\]]{1,6}\]/g, m => EMOJI[m] || m);
@@ -254,17 +255,27 @@ async function send() {
   pushMsg("me", text);
   busy = true; $("#send").disabled = true;
 
+  sent += 1;
+  const turn = sent;   // 只算本次会话发出去的
   let data;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 70000);
   try {
     const r = await fetch("/api/reply", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ history, config: cfg() })
+      body: JSON.stringify({ history, config: cfg(), turn }),
+      signal: ctl.signal
     });
     data = await r.json();
   } catch (e) {
-    sysLine("连不上本地服务，确认 python sim/sim.py 还在跑");
-    busy = false; $("#send").disabled = false; return;
+    clearTimeout(timer);
+    sysLine(e.name === "AbortError"
+      ? "等了 70 秒没有结果，已放弃。检查网络或 key 是否可用。"
+      : "连不上本地服务，确认 python sim/sim.py 还在跑");
+    busy = false; $("#send").disabled = false;
+    return;
   }
+  clearTimeout(timer);
   if (!data || data.error) {
     sysLine((data && data.error) || "接口没有返回内容");
     busy = false; $("#send").disabled = false; return;
@@ -285,7 +296,15 @@ async function send() {
     setTimeout(() => {
       t.remove();
       $("#chatNav").classList.remove("typing");
-      if (data.reply) pushMsg("her", data.text);
+      if (data.reply) {
+        pushMsg("her", data.text);
+      } else {
+        const tip = document.createElement("div");
+        tip.className = "tip";
+        tip.textContent = "对方没有回复";
+        $("#msgs").appendChild(tip);
+        $("#msgs").scrollTop = $("#msgs").scrollHeight;
+      }
       busy = false; $("#send").disabled = false;
     }, typingMs);
   }, Math.max(300, delay - typingMs));

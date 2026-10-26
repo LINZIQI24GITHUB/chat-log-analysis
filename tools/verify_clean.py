@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import subprocess
 import sys
 
 # 这些文件名说明是运行产物，不该出现在仓库里
@@ -43,6 +44,16 @@ SKIP_DIRS = {".git", "__pycache__", "docs", "node_modules"}
 TEXT_EXT = {".py", ".md", ".txt", ".json", ".yml", ".yaml", ".toml", ".cmd", ".sh"}
 
 
+def _ignored(root: str, rel: str) -> bool:
+    """被 gitignore 挡掉的文件不算问题（它们本来就不会被提交）。"""
+    try:
+        r = subprocess.run(["git", "check-ignore", "-q", rel], cwd=root,
+                           capture_output=True)
+        return r.returncode == 0
+    except OSError:
+        return False
+
+
 def scan(root: str) -> list[str]:
     problems: list[str] = []
     for dirpath, dirnames, filenames in os.walk(root):
@@ -59,6 +70,8 @@ def scan(root: str) -> list[str]:
         for name in filenames:
             rel = os.path.join(rel_dir, name) if rel_dir != "." else name
             if name in SKIP_FILES:
+                continue
+            if _ignored(root, rel):
                 continue
             if name in BAD_NAMES:
                 problems.append(f"[文件] 运行产物不该入库：{rel}")
