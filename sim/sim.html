@@ -313,7 +313,10 @@ async function send() {
       t.remove();
       $("#chatNav").classList.remove("typing");
       if (data.reply) {
-        pushMsg("her", data.text);
+        const parts = (data.texts && data.texts.length) ? data.texts : [data.text];
+        parts.forEach((p, i) => setTimeout(() => pushMsg("her", p), i * 450));
+        setTimeout(() => { busy = false; $("#send").disabled = false; },
+                   (parts.length - 1) * 450);
       } else {
         const tip = document.createElement("div");
         tip.className = "tip";

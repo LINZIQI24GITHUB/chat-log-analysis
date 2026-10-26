@@ -66,6 +66,11 @@ def call_model(cfg: dict, persona: dict, history: list[dict]) -> str:
         raise ValueError("还没填 API：点右上角齿轮，填 base_url 和 key")
 
     msgs = [{"role": "system", "content": persona.get("system_prompt", "")}]
+    # 真实对答当 few-shot：学节奏，比在 prompt 里列句子有用得多
+    for fs in (persona.get("few_shot") or [])[:6]:
+        if fs.get("me") and fs.get("her"):
+            msgs.append({"role": "user", "content": fs["me"]})
+            msgs.append({"role": "assistant", "content": fs["her"]})
     for h in history[-14:]:
         role = "user" if h.get("role") == "me" else "assistant"
         msgs.append({"role": role, "content": str(h.get("text", ""))[:500]})
@@ -276,8 +281,9 @@ class Handler(BaseHTTPRequestHandler):
         print(f"[reply] turn={turn} silent=False delay={delay/1000:.1f}s "
               f"len={len(text)} key_len={len(cfg.get('key') or '')}",
               file=sys.stderr, flush=True)
+        parts = [p.strip() for p in text.split("\n") if p.strip()][:3] or [text]
         self._send(200, json.dumps({
-            "reply": True, "text": text, "delay_ms": delay,
+            "reply": True, "text": text, "texts": parts, "delay_ms": delay,
             "typing_ms": max(900, int(delay * 0.35)),
         }, ensure_ascii=False).encode("utf-8"),
             "application/json; charset=utf-8")
