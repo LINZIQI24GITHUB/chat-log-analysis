@@ -205,8 +205,14 @@ function renderList() {
     </div>`;
   $("#rowChat").onclick = openChat;
   $("#chatName").textContent = persona.name;
+  updateNote();
+}
+
+function updateNote() {
+  const c = cfg();
+  const who = c.provider ? `${c.provider} · ${c.model}` : (c.model || "未配置");
   $("#chatNote").textContent =
-    `模拟对话 · 基于 ${(persona.counts || {}).total || 0} 条记录生成，不是${persona.name}本人`;
+    `模拟对话 · ${who} · 基于 ${(persona.counts || {}).total || 0} 条记录，不是${persona.name}本人`;
 }
 
 function bubble(role, text) {
@@ -277,7 +283,12 @@ async function send() {
   }
   clearTimeout(timer);
   if (!data || data.error) {
-    sysLine((data && data.error) || "接口没有返回内容");
+    const msg = (data && data.error) || "接口没有返回内容";
+    sysLine(msg);
+    if (/401|403/.test(msg)) {
+      hintBad("上次的连接被拒了，重新粘一次 key 再点连接");
+      setTimeout(openSettings, 500);
+    }
     busy = false; $("#send").disabled = false; return;
   }
 
@@ -293,7 +304,12 @@ async function send() {
     $("#msgs").scrollTop = $("#msgs").scrollHeight;
     $("#chatNav").classList.add("typing");
 
+    const guard = setTimeout(() => {          // 保险：最多再等 15 秒
+      t.remove(); $("#chatNav").classList.remove("typing");
+      busy = false; $("#send").disabled = false;
+    }, typingMs + 15000);
     setTimeout(() => {
+      clearTimeout(guard);
       t.remove();
       $("#chatNav").classList.remove("typing");
       if (data.reply) {
@@ -310,11 +326,22 @@ async function send() {
   }, Math.max(300, delay - typingMs));
 }
 
+function hintBad(msg) {
+  const hint = $("#hint");
+  hint.className = "hint bad";
+  hint.textContent = msg;
+}
+
 function openSettings() {
   const c = cfg();
   $("#cfgKey").value = c.key || "";
-  $("#cfgUrl").value = c.base_url || "";
-  $("#cfgModel").value = c.model || "";
+  if (c.provider) {
+    $("#cfgUrl").value = ""; $("#cfgModel").value = "";
+    $("#manualBox").classList.remove("on");
+  } else {
+    $("#cfgUrl").value = c.base_url || "";
+    $("#cfgModel").value = c.model || "";
+  }
   const hint = $("#hint");
   if (c.key && c.provider) {
     hint.className = "hint ok";
@@ -343,6 +370,15 @@ $("#ta").addEventListener("input", e => {
 $("#openSettings1").onclick = openSettings;
 $("#openSettings2").onclick = openSettings;
 $("#cancelCfg").onclick = () => $("#mask").classList.remove("on");
+// 粘贴/输入时自动清掉非 ASCII（中文、全角、空格），并提示
+$("#cfgKey").addEventListener("input", e => {
+  const raw = e.target.value;
+  const clean = raw.replace(/[^\x21-\x7E]/g, "");
+  if (clean !== raw) {
+    e.target.value = clean;
+    hintBad("key 里混进了中文/空格/全角字符，已自动去掉");
+  }
+});
 $("#moreToggle").onclick = () => $("#manualBox").classList.toggle("on");
 
 $("#connectCfg").onclick = async () => {
@@ -350,14 +386,17 @@ $("#connectCfg").onclick = async () => {
   const hint = $("#hint");
   if (!key) { hint.className = "hint bad"; hint.textContent = "先把 key 粘进来"; return; }
 
-  const manualUrl = $("#cfgUrl").value.trim().replace(/\/$/, "");
-  const manualModel = $("#cfgModel").value.trim();
+  const manualOpen = $("#manualBox").classList.contains("on");
+  const manualUrl = manualOpen ? $("#cfgUrl").value.trim().replace(/\/$/, "") : "";
+  const manualModel = manualOpen ? $("#cfgModel").value.trim() : "";
 
   if (manualUrl) {
     localStorage.setItem(CFG_KEY, JSON.stringify({ key, base_url: manualUrl, model: manualModel || "deepseek-chat" }));
     hint.className = "hint ok";
-    hint.textContent = `已保存（手动）：${manualUrl} · ${manualModel || "deepseek-chat"}`;
-    setTimeout(() => $("#mask").classList.remove("on"), 800);
+    updateNote();
+    hint.textContent = `已保存（手动）：${manualUrl} · ${manualModel || "deepseek-chat"}\n`
+      + "注意：手动模式不会自动识别，地址和模型必须配对。";
+    setTimeout(() => $("#mask").classList.remove("on"), 2000);
     return;
   }
 
@@ -375,8 +414,11 @@ $("#connectCfg").onclick = async () => {
         key, base_url: d.base_url, model: d.model, provider: d.provider
       }));
       hint.className = "hint ok";
-      hint.textContent = `识别成功：${d.provider} · ${d.model}`;
-      setTimeout(() => $("#mask").classList.remove("on"), 900);
+      hint.textContent = `识别成功：${d.provider} · ${d.model}\n点「完成」回到聊天`;
+      updateNote();
+      const btn = $("#connectCfg");
+      btn.textContent = "完成";
+      btn.onclick = () => $("#mask").classList.remove("on");
     } else {
       hint.className = "hint bad";
       hint.textContent = "这个 key 没被任何一家认出来。\n"

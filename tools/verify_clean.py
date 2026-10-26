@@ -64,7 +64,9 @@ def scan(root: str) -> list[str]:
             continue
         for d in list(dirnames):
             if BAD_DIRS.match(d):
-                problems.append(f"[目录] 运行产物不该入库：{os.path.join(rel_dir, d)}")
+                rel_d = os.path.join(rel_dir, d) if rel_dir != "." else d
+                if not _ignored(root, rel_d):
+                    problems.append(f"[目录] 运行产物不该入库：{rel_d}")
                 dirnames.remove(d)
 
         for name in filenames:

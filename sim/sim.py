@@ -185,6 +185,12 @@ class Handler(BaseHTTPRequestHandler):
                 key = ((json.loads(self.rfile.read(n) or b"{}").get("key")) or "").strip()
             except json.JSONDecodeError:
                 key = ""
+            if key and not key.isascii():
+                bad = [ch for ch in key if not ch.isascii()][:3]
+                self._send(200, json.dumps(
+                    {"ok": False, "error": f"key 里混进了中文或全角字符：{' '.join(bad)}"},
+                    ensure_ascii=False).encode(), "application/json; charset=utf-8")
+                return
             if not key:
                 self._send(200, json.dumps({"ok": False, "error": "没有填 key"},
                                            ensure_ascii=False).encode(),
@@ -225,6 +231,12 @@ class Handler(BaseHTTPRequestHandler):
 
         persona = PERSONA
         history = payload.get("history") or []
+        _k = (payload.get("config") or {}).get("key") or ""
+        if _k and not _k.isascii():
+            self._send(200, json.dumps(
+                {"error": "key 里混进了中文或全角字符，重新复制一次"},
+                ensure_ascii=False).encode(), "application/json; charset=utf-8")
+            return
         cfg = payload.get("config") or {}
         turn = int(payload.get("turn") or 0)          # 这是第几次发消息
 
@@ -253,7 +265,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             text = call_model(cfg, persona, history)
         except ValueError as e:
-            print(f"[reply] 失败 key_len={len(cfg.get('key') or '')} err={str(e)[:120]}",
+            print(f"[reply] 失败 base={cfg.get('base_url')} model={cfg.get('model')} "
+                  f"key_len={len(cfg.get('key') or '')} err={str(e)[:120]}",
                   file=sys.stderr, flush=True)
             self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False).encode(),
                        "application/json; charset=utf-8")

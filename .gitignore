@@ -1,5 +1,6 @@
 # 运行产物（含原文，别提交）
 work/
+.cache/
 work-*/
 _*/
 persona.json
