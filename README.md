@@ -1,5 +1,7 @@
 # 微信聊天记录关系分析
 
+![test](https://github.com/LINZIQI24GITHUB/wechat-relationship-analysis/actions/workflows/test.yml/badge.svg)
+
 **不用导出，不用上传。** 直接读本机微信，把一段聊天变成一份有证据的关系报告。
 
 [为什么不用导出](#为什么不用导出) · [它能回答什么](#它能回答什么) · [快速开始](#快速开始) · [模拟对话](#模拟对话实验功能) · [隐私](#隐私) · [FAQ](#faq)
@@ -38,6 +40,15 @@
 - **模拟对话（实验）**：把记录蒸馏成说话档案，用你自己的模型扮演对方继续聊——见下文
 
 它**不**做心理诊断，不贴「NPD」「回避型依恋」这类人格标签，不教操控，也不替你作决定。
+
+## 仓库里没有你的数据
+
+仓库不含任何人的聊天记录、分析结果、API Key、wxid 或本机路径；`examples/` 是 20 天的**合成**对话。`tools/verify_clean.py` 每次 CI 都会扫一遍：
+
+```bash
+python tools/verify_clean.py
+# [OK] 干净：没有运行产物、密钥、wxid 或本机路径。
+```
 
 ## 它和「让 AI 随便聊聊」的区别
 
